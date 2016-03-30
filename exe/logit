@@ -24,9 +24,11 @@ end.parse!
 
 options[:outputfile] ||= "data.log"
 
-data_point = 0
+@incoming_data_point = 0
 ARGF.each_line do |line|
-  data_point = line.strip.split( " " ).first.to_f rescue 0
+  puts "Line: #{line}"
+  @incoming_data_point = line.strip.split( " " ).first.to_f rescue 0
+  puts "@incoming_data_point: #{@incoming_data_point}"
   break
 end
 
@@ -37,27 +39,27 @@ end
 def create_blank_log( filename )
   data = ""
   
-  start = (Time.now.to_i / 600.0).to_i * 600
-  start -= 600 #Always start at least 600 seconds ago so we don't skip this new entry.
+  start = (Time.now.to_i / 300.0).to_i * 300
+  start -= 300 #Always start at least 600 seconds ago so we don't skip this new entry.
 
   t = start
   600.times do
-    data += "#{t} 0"
-    t -= 600
+    data += "#{t} 0\n"
+    t -= 300
   end
   
   600.times do
-    data += "#{t} 0"
+    data += "#{t} 0\n"
     t -= 1800
   end
   
   600.times do
-    data += "#{t} 0"
+    data += "#{t} 0\n"
     t -= 7200
   end
   
-  600.times do
-    data += "#{t} 0"
+  700.times do
+    data += "#{t} 0\n"
     t -= 86400
   end
   
@@ -74,22 +76,22 @@ end
 
 lines = current_file_data.split( "\n" )
 
-last_ts = lines.first.split( " " ).first
+last_ts = lines.first.split( " " ).first.to_i
 
-if Time.now.to_i - last_ts >= 600
-  puts "Logging new values to the 5m records"
-  logtime = (Time.now.to_i / 600.0).to_i * 600 #Always a 5m offset.
-  new_line = "#{logtime} #{data_point}"
+if Time.now.to_i - last_ts >= 300
+  logtime = (Time.now.to_i / 300.0).to_i * 300 #Always a 5m offset.
   
-  five_minute_intervals   = data[0..599]
+  five_minute_intervals   = lines[0..599]
+  thirty_minute_intervals = lines[600..1199]
+  two_hour_intervals      = lines[1200..1799]    
+  one_day_intervals       = lines[1800..2499]
+  
   
   # Add the new data to the 5mins
-  five_minute_intervals.unshift( logtime )
+  puts "Logging new values to the 5m records"
+  new_line = "#{logtime} #{@incoming_data_point}"
+  five_minute_intervals.unshift( new_line )
   five_minute_intervals.pop
-  
-  thirty_minute_intervals = data[600..1199]
-  two_hour_intervals      = data[1200..1799]    
-  one_day_intervals       = data[1800..2399]
   
   if logtime % 1800 == 0
     puts "Rotating the 30m intervals" 
@@ -99,6 +101,7 @@ if Time.now.to_i - last_ts >= 600
     new_thirty_minute_timestamp = thirty_minute_intervals.first.split( " " ).first.to_i + 1800
     
     thirty_minute_intervals.unshift( "#{new_thirty_minute_timestamp} #{new_thirty_minute_value}")
+    thirty_minute_intervals.pop
   end
   
   if logtime % 7200 == 0
@@ -109,6 +112,7 @@ if Time.now.to_i - last_ts >= 600
     new_two_hour_timestamp = two_hour_intervals.first.split( " " ).first.to_i + 7200
     
     two_hour_intervals.unshift( "#{new_two_hour_timestamp} #{new_two_hour_value}")
+    two_hour_intervals.pop
   end
   
   if logtime % 86400 == 0
@@ -119,13 +123,14 @@ if Time.now.to_i - last_ts >= 600
     new_one_day_timestamp = one_day_intervals.first.split( " " ).first.to_i + 86400
     
     one_day_intervals.unshift( "#{new_one_day_timestamp} #{new_one_day_value}")
+    one_day_intervals.pop if one_day_intervals.size > 700
   end
 
   lines = five_minute_intervals + thirty_minute_intervals + two_hour_intervals + one_day_intervals
   
   File.open(options[:outputfile], 'w') {|f| f.write( lines.join( "\n" ) ) }
 else
-  puts "Not enough time has elapsed. Not logging."
+  puts "Not enough time has elapsed (#{Time.now.to_i - last_ts}). Not logging."
 end
 
 
