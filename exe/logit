@@ -1,0 +1,135 @@
+#!/usr/bin/env ruby
+require 'logit'
+require 'optparse'
+
+options = {}
+options[:debug]   = false
+options[:verbose] = false
+OptionParser.new do |opts|
+  opts.banner = "Usage: graphit [options] data"
+
+  opts.on("-d", "--[no-]debug", "Debug output") do |d|
+    options[:debug] = d
+  end
+
+  opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
+    options[:verbose] = v
+  end
+    
+  opts.on("-o", "--output-file [file]", "Filename") do |of|
+    options[:outputfile] = of
+  end
+  
+end.parse!
+
+options[:outputfile] ||= "data.log"
+
+data_point = 0
+ARGF.each_line do |line|
+  data_point = line.strip.split( " " ).first.to_f rescue 0
+  break
+end
+
+# 5m  intervals until 50 hours have elapsed
+# 30m intervals until 350 hours have elapsed
+# 2h  intervals until 1550 hours have elapsed
+# 1d  intervals until 20000 hours have elapsed
+def create_blank_log( filename )
+  data = ""
+  
+  start = (Time.now.to_i / 600.0).to_i * 600
+  start -= 600 #Always start at least 600 seconds ago so we don't skip this new entry.
+
+  t = start
+  600.times do
+    data += "#{t} 0"
+    t -= 600
+  end
+  
+  600.times do
+    data += "#{t} 0"
+    t -= 1800
+  end
+  
+  600.times do
+    data += "#{t} 0"
+    t -= 7200
+  end
+  
+  600.times do
+    data += "#{t} 0"
+    t -= 86400
+  end
+  
+  File.open(filename, 'w') {|f| f.write(data) }
+  
+  data
+end
+
+if File.exist?( options[:outputfile] )
+  current_file_data = File.open( options[:outputfile] ).read
+else
+  current_file_data = create_blank_log( options[:outputfile] )
+end
+
+lines = current_file_data.split( "\n" )
+
+last_ts = lines.first.split( " " ).first
+
+if Time.now.to_i - last_ts >= 600
+  puts "Logging new values to the 5m records"
+  logtime = (Time.now.to_i / 600.0).to_i * 600 #Always a 5m offset.
+  new_line = "#{logtime} #{data_point}"
+  
+  five_minute_intervals   = data[0..599]
+  
+  # Add the new data to the 5mins
+  five_minute_intervals.unshift( logtime )
+  five_minute_intervals.pop
+  
+  thirty_minute_intervals = data[600..1199]
+  two_hour_intervals      = data[1200..1799]    
+  one_day_intervals       = data[1800..2399]
+  
+  if logtime % 1800 == 0
+    puts "Rotating the 30m intervals" 
+    
+    # Shift the 30s
+    new_thirty_minute_value = five_minute_intervals[595..599].collect{ |i| i.split( " " ).last.to_f }.inject(:+) / 5.0
+    new_thirty_minute_timestamp = thirty_minute_intervals.first.split( " " ).first.to_i + 1800
+    
+    thirty_minute_intervals.unshift( "#{new_thirty_minute_timestamp} #{new_thirty_minute_value}")
+  end
+  
+  if logtime % 7200 == 0
+    puts "Rotating the 2h intervals" 
+    
+    # Shift the 2hs
+    new_two_hour_value = thirty_minute_intervals[1195..1199].collect{ |i| i.split( " " ).last.to_f }.inject(:+) / 5.0
+    new_two_hour_timestamp = two_hour_intervals.first.split( " " ).first.to_i + 7200
+    
+    two_hour_intervals.unshift( "#{new_two_hour_timestamp} #{new_two_hour_value}")
+  end
+  
+  if logtime % 86400 == 0
+    puts "Rotating the 1d intervals" 
+    
+    # Shift the 1ds
+    new_one_day_value = two_hour_intervals[1795..1799].collect{ |i| i.split( " " ).last.to_f }.inject(:+) / 5.0
+    new_one_day_timestamp = one_day_intervals.first.split( " " ).first.to_i + 86400
+    
+    one_day_intervals.unshift( "#{new_one_day_timestamp} #{new_one_day_value}")
+  end
+
+  lines = five_minute_intervals + thirty_minute_intervals + two_hour_intervals + one_day_intervals
+  
+  File.open(options[:outputfile], 'w') {|f| f.write( lines.join( "\n" ) ) }
+else
+  puts "Not enough time has elapsed. Not logging."
+end
+
+
+
+
+
+
