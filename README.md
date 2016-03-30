@@ -42,6 +42,6 @@ Example:
 *  600 samples at 5m  intervals 
 *  600 samples at 30m intervals 
 *  600 samples at 2h  intervals
-*  600 samples at 1d  intervals
+*  700 samples at 1d  intervals
 
 In all `logit` will store over 2 years of data.
