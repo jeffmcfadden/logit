@@ -108,7 +108,7 @@ if Time.now.to_i - last_ts >= 300
     puts "Rotating the 2h intervals" 
     
     # Shift the 2hs
-    new_two_hour_value = thirty_minute_intervals[1195..1199].collect{ |i| i.split( " " ).last.to_f }.inject(:+) / 5.0
+    new_two_hour_value = thirty_minute_intervals[595..599].collect{ |i| i.split( " " ).last.to_f }.inject(:+) / 5.0
     new_two_hour_timestamp = two_hour_intervals.first.split( " " ).first.to_i + 7200
     
     two_hour_intervals.unshift( "#{new_two_hour_timestamp} #{new_two_hour_value}")
@@ -119,7 +119,7 @@ if Time.now.to_i - last_ts >= 300
     puts "Rotating the 1d intervals" 
     
     # Shift the 1ds
-    new_one_day_value = two_hour_intervals[1795..1799].collect{ |i| i.split( " " ).last.to_f }.inject(:+) / 5.0
+    new_one_day_value = two_hour_intervals[595..599].collect{ |i| i.split( " " ).last.to_f }.inject(:+) / 5.0
     new_one_day_timestamp = one_day_intervals.first.split( " " ).first.to_i + 86400
     
     one_day_intervals.unshift( "#{new_one_day_timestamp} #{new_one_day_value}")
