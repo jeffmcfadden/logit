@@ -17,7 +17,7 @@ I'm being stubborn about naming this gem something else, and `logit` is already 
 
 ## Usage
 
-Just pipe any numeric value to `logit` and include a filename. `logit` will capture the value the story a 2-year history of data points.
+Just pipe any numeric value to `logit` and include a filename. `logit` will capture the value and store a 2-year history of data points.
 
     $ cat datapoint | logit -o data.log
 
